@@ -192,7 +192,7 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
    /* Create string of significand digits */
 
    /* Convert the 114-bit binary number represented by */
-   /* (significand_high, significand_low) to at most 34 decimal */
+   /* (high, midh, midl, low) to at most 34 decimal */
    /* digits through modulo and division. */
    significand128.parts[0] = (high & 0x3fff) + ((significand_msb & 0xf) << 14);
    significand128.parts[1] = midh;
@@ -202,6 +202,14 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
    if (significand128.parts[0] == 0 && significand128.parts[1] == 0 &&
        significand128.parts[2] == 0 && significand128.parts[3] == 0) {
       is_zero = true;
+   } else if (significand128.parts[0] == (1 << 17)) {
+      /* The significand is non-canonical or zero.
+         In order to preserve compatability with the densely packed decimal
+         format, the maximum value for the significand of decimal128 is
+         1e34 - 1.  If the value is greater than 1e34 - 1, the IEEE 754
+         standard dictates that the significand is interpreted as zero.
+       */
+     is_zero = true;
    } else {
       for (k = 3; k >= 0; k--) {
          uint32_t least_digits = 0;
