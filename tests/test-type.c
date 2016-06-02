@@ -89,23 +89,26 @@ test_bson_type_decimal128 (const char *bson_str,
    canonical_extjson = bson_new_from_json (canonical_extjson_str, canonical_extjson_str_len, &error);
 
    /* B->cE */
-   ASSERT_CMPSTR_STRIPWS (bson_as_json (&bson, NULL), canonical_extjson_str);
+   ASSERT_CMPJSON (bson_as_json (&bson, NULL), canonical_extjson_str);
+
    /* E->cE */
-   ASSERT_CMPSTR_STRIPWS (bson_as_json (extjson, NULL), canonical_extjson_str);
+   ASSERT_CMPJSON (bson_as_json (extjson, NULL), canonical_extjson_str);
    
    /* cb->cE */
    ASSERT_CMPSTR ((const char*) bson_get_data (&canonical_bson), (const char*) bson_get_data (canonical_extjson));
 
    /* cE->cE */
-   ASSERT_CMPSTR_STRIPWS ((const char*) bson_as_json (canonical_extjson, NULL), canonical_extjson_str);
+   ASSERT_CMPJSON (bson_as_json (canonical_extjson, NULL), canonical_extjson_str);
 
    if (!lossy) {
    /* E->cB */
-      ASSERT_CMPSTR_STRIPWS ((const char*) bson_as_json (extjson, NULL), canonical_extjson_str);
+      ASSERT_CMPJSON (bson_as_json (extjson, NULL), canonical_extjson_str);
 
       /* cE->cB */
       ASSERT_CMPSTR ((const char*) bson_get_data (canonical_extjson), canonical_bson_str);
    }
+   bson_destroy (extjson);
+   bson_destroy (canonical_extjson);
 }
 
 static void
@@ -142,7 +145,7 @@ test_bson_type (bson_t *scenario, test_bson_type_valid_cb valid)
          uint32_t    extjson_str_len;
          const char *canonical_extjson_str = NULL;
          uint32_t    canonical_extjson_str_len;
-         bool lossy;
+         bool lossy = false;
 
          bson_iter_recurse (&inner_iter, &test);
          _test_bson_type_print_description (&test);
