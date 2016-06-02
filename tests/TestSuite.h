@@ -118,6 +118,24 @@ extern "C" {
    } while (0)
 
 
+#define ASSERT_CMPSTR_STRIPWS(_a, _b) \
+   do { \
+      size_t i = 0; \
+      char *a  = (char *)_a; \
+      char *b  = (char *)_b; \
+      char *aa = bson_malloc0 (strlen (a)); \
+      char *bb = bson_malloc0 (strlen (b)); \
+      do { while(isspace(*a)) a++; aa[i++] = *a++; } while(*a); \
+      i=0; \
+      do { while(isspace(*b)) b++; bb[i++] = *b++; } while(*b); \
+      if (((aa) != (bb)) && !!strcmp((aa), (bb))) { \
+         fprintf(stderr, "FAIL\n\nAssert Failure: \"%s\" != \"%s\"\n", \
+                         aa, bb); \
+         abort(); \
+      } \
+   } while (0)
+
+
 #define ASSERT_CMPOID(a, b) \
    do { \
       if (bson_oid_compare ((a), (b))) { \
