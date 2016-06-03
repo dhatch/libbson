@@ -202,7 +202,7 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
    if (significand128.parts[0] == 0 && significand128.parts[1] == 0 &&
        significand128.parts[2] == 0 && significand128.parts[3] == 0) {
       is_zero = true;
-   } else if (significand128.parts[0] == (1 << 17)) {
+   } else if (significand128.parts[0] >= (1 << 17)) {
       /* The significand is non-canonical or zero.
          In order to preserve compatability with the densely packed decimal
          format, the maximum value for the significand of decimal128 is
@@ -252,9 +252,7 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
       because doing so would change the precision of the value, and would
       change stored data if the string converted number is round tripped.
    */
-   if (scientific_exponent >= 12 || scientific_exponent <= -4 ||
-       exponent > 0 ||
-       (is_zero && scientific_exponent != 0)) {
+   if (scientific_exponent < -6 || exponent > 0) {
       /* Scientific format */
       *(str_out++) = *(significand_read++) + '0';
       significand_digits--;
