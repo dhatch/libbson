@@ -92,7 +92,7 @@ _bson_uint128_divide1B (_bson_uint128_t  value,    /* IN */
    for (i = 0; i <= 3; i++) {
       _rem <<= 32;  /* Adjust remainder to match value of next dividend */
       _rem += value.parts[i];                      /* Add the divided to _rem */
-      value.parts[i] = (uint32_t)(_rem / DIVISOR);
+      value.parts[i] = (uint32_t) (_rem / DIVISOR);
       _rem %= DIVISOR;                             /* Store the remainder */
    }
 
@@ -157,14 +157,14 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
 
    memset (significand_str, 0, sizeof (significand_str));
 
-   if ((int64_t)dec->high < 0) {  /* negative */
+   if ((int64_t) dec->high < 0) {  /* negative */
       *(str_out++) = '-';
    }
 
-   low = (uint32_t)dec->low,
-   midl = (uint32_t)(dec->low >> 32),
-   midh = (uint32_t)dec->high,
-   high = (uint32_t)(dec->high >> 32);
+   low = (uint32_t) dec->low,
+   midl = (uint32_t) (dec->low >> 32),
+   midh = (uint32_t) dec->high,
+   high = (uint32_t) (dec->high >> 32);
 
    /* Decode combination field and exponent */
    combination = (high >> 26) & COMBINATION_MASK;
@@ -204,12 +204,12 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
       is_zero = true;
    } else if (significand128.parts[0] >= (1 << 17)) {
       /* The significand is non-canonical or zero.
-         In order to preserve compatability with the densely packed decimal
-         format, the maximum value for the significand of decimal128 is
-         1e34 - 1.  If the value is greater than 1e34 - 1, the IEEE 754
-         standard dictates that the significand is interpreted as zero.
+       * In order to preserve compatability with the densely packed decimal
+       * format, the maximum value for the significand of decimal128 is
+       * 1e34 - 1.  If the value is greater than 1e34 - 1, the IEEE 754
+       * standard dictates that the significand is interpreted as zero.
        */
-     is_zero = true;
+      is_zero = true;
    } else {
       for (k = 3; k >= 0; k--) {
          uint32_t least_digits = 0;
@@ -245,13 +245,13 @@ bson_decimal128_to_string (const bson_decimal128_t *dec,        /* IN  */
    scientific_exponent = significand_digits - 1 + exponent;
 
    /* The scientific exponent checks are dictated by the string conversion
-      specification and are somewhat arbitrary cutoffs.
-
-      We must check exponent > 0, because if this is the case, the number
-      has trailing zeros.  However, we *cannot* output these trailing zeros,
-      because doing so would change the precision of the value, and would
-      change stored data if the string converted number is round tripped.
-   */
+    * specification and are somewhat arbitrary cutoffs.
+    *
+    * We must check exponent > 0, because if this is the case, the number
+    * has trailing zeros.  However, we *cannot* output these trailing zeros,
+    * because doing so would change the precision of the value, and would
+    * change stored data if the string converted number is round tripped.
+    */
    if (scientific_exponent < -6 || exponent > 0) {
       /* Scientific format */
       *(str_out++) = *(significand_read++) + '0';
@@ -338,9 +338,9 @@ _mul_64x64 (uint64_t              left,    /* IN */
    }
 
    left_high = left >> 32;
-   left_low = (uint32_t)left;
+   left_low = (uint32_t) left;
    right_high = right >> 32;
-   right_low = (uint32_t)right;
+   right_low = (uint32_t) right;
 
    product_high = left_high * right_high;
    product_mid = left_high * right_low;
@@ -348,10 +348,10 @@ _mul_64x64 (uint64_t              left,    /* IN */
    product_low = left_low * right_low;
 
    product_high += product_mid >> 32;
-   product_mid = (uint32_t)product_mid + product_mid2 + (product_low >> 32);
+   product_mid = (uint32_t) product_mid + product_mid2 + (product_low >> 32);
 
    product_high = product_high + (product_mid >> 32);
-   product_low = (product_mid << 32) + (uint32_t)product_low;
+   product_low = (product_mid << 32) + (uint32_t) product_low;
 
    rt.high = product_high;
    rt.low = product_low;
@@ -612,6 +612,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
          first_nonzero++;
          end_of_string++;
       }
+
       /* There are non-zero digits after last_digit that need rounding. */
       /* We round to nearest, ties to even */
       round_digit = string[first_nonzero + last_digit + 1] - '0';
@@ -697,7 +698,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
    }
 
 
-   biased_exponent = (exponent + (int16_t)BSON_DECIMAL128_EXPONENT_BIAS);
+   biased_exponent = (exponent + (int16_t) BSON_DECIMAL128_EXPONENT_BIAS);
 
    /* Encode combination, exponent, and significand. */
    if ((significand.high >> 49) & 1) {
@@ -714,7 +715,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
 
    /* Encode sign */
    if (is_negative) {
-	   dec->high |= 0x8000000000000000ull;
+      dec->high |= 0x8000000000000000ull;
    }
 
    return true;
