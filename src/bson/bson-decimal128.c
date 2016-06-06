@@ -429,7 +429,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
    }
 
    /* Check for Infinity or NaN */
-   if (!isdigit (*str_read) || *str_read == '.') {
+   if (!isdigit (*str_read) && *str_read != '.') {
       if (*str_read == 'i' || *str_read == 'I') {
          str_read++;
 
@@ -536,7 +536,9 @@ bson_decimal128_from_string (const char        *string, /* IN */
    } else {
       last_digit = ndigits_stored - 1;
       significant_digits = ndigits;
-      while (string[first_nonzero + significant_digits - 1] == '0') {
+      // Mark trailing zeros as non-significant
+      while (string[first_nonzero + significant_digits - 1 +
+                    saw_radix] == '0') {
          significant_digits--;
       }
    }
