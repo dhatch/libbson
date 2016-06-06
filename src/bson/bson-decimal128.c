@@ -561,6 +561,13 @@ bson_decimal128_from_string (const char        *string, /* IN */
       last_digit++;
 
       if (last_digit - first_digit > BSON_DECIMAL128_MAX_DIGITS) {
+         // The exponent is too great to shift into the significand.
+         if (significant_digits == 0) {
+            // Value is zero, we are allowed to clamp the exponent.
+            exponent = BSON_DECIMAL128_EXPONENT_MAX;
+            break;
+         }
+
          BSON_DECIMAL128_SET_INF (*dec, is_negative);
          return true;
       }
