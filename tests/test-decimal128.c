@@ -105,6 +105,7 @@ test_decimal128_to_string__regular (void) {
    bson_decimal128_t largest_regular;
    bson_decimal128_t trailing_zeros;
    bson_decimal128_t all_digits;
+   bson_decimal128_t full_house;
 
    DECIMAL128_FROM_ULLS (one, 0x3040000000000000, 0x0000000000000001);
    DECIMAL128_FROM_ULLS (zero, 0x3040000000000000, 0x0000000000000000);
@@ -120,6 +121,9 @@ test_decimal128_to_string__regular (void) {
    DECIMAL128_FROM_ULLS (trailing_zeros, 0x302a000000000000, 0x00000000075aef40);
    /* 0.1234567890123456789012345678901234 */
    DECIMAL128_FROM_ULLS (all_digits, 0x2ffc3cde6fff9732, 0xde825cd07e96aff2);
+
+   /* 5192296858534827628530496329220095 */
+   DECIMAL128_FROM_ULLS (full_house, 0x3040ffffffffffff, 0xffffffffffffffff);
 
    bson_decimal128_to_string (&one, bid_string);
    assert (!strcmp ("1", bid_string));
@@ -150,6 +154,9 @@ test_decimal128_to_string__regular (void) {
 
    bson_decimal128_to_string (&all_digits, bid_string);
    assert (!strcmp ("0.1234567890123456789012345678901234", bid_string));
+
+   bson_decimal128_to_string (&full_house, bid_string);
+   assert (!strcmp ("5192296858534827628530496329220095", bid_string));
 }
 
 
@@ -163,7 +170,6 @@ test_decimal128_to_string__scientific (void) {
    bson_decimal128_t large;      /* 9.999987654321E+112 */
    bson_decimal128_t largest;    /* 9.999999999999999999999999999999999E+6144 */
    bson_decimal128_t tiniest;    /* 9.999999999999999999999999999999999E-6143 */
-   bson_decimal128_t full_house; /* 5.192296858534827628530496329220095E+33 */
    bson_decimal128_t trailing_zero; /* 1.050E9 */
    bson_decimal128_t one_trailing_zero; /* 1.050E4 */
    bson_decimal128_t move_decimal; /* 105 */
@@ -176,7 +182,6 @@ test_decimal128_to_string__scientific (void) {
    DECIMAL128_FROM_ULLS (large, 0x3108000000000000, 0x000009184db63eb1);
    DECIMAL128_FROM_ULLS (largest, 0x5fffed09bead87c0, 0x378d8e63ffffffff);
    DECIMAL128_FROM_ULLS (tiniest, 0x0001ed09bead87c0, 0x378d8e63ffffffff);
-   DECIMAL128_FROM_ULLS (full_house, 0x3040ffffffffffff, 0xffffffffffffffff);
    DECIMAL128_FROM_ULLS (trailing_zero, 0x304c000000000000, 0x000000000000041a);
    DECIMAL128_FROM_ULLS (one_trailing_zero, 0x3042000000000000, 0x000000000000041a);
    DECIMAL128_FROM_ULLS (move_decimal, 0x3040000000000000, 0x0000000000000069);
@@ -203,9 +208,6 @@ test_decimal128_to_string__scientific (void) {
 
    bson_decimal128_to_string (&tiniest, bid_string);
    assert (!strcmp ("9.999999999999999999999999999999999E-6143", bid_string));
-
-   bson_decimal128_to_string (&full_house, bid_string);
-   assert (!strcmp ("5.192296858534827628530496329220095E+33", bid_string));
 
    bson_decimal128_to_string (&trailing_zero, bid_string);
    assert (!strcmp ("1.050E+9", bid_string));

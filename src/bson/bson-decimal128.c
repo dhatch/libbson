@@ -463,6 +463,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
       if (*str_read == '.') {
          if (saw_radix) {
             BSON_DECIMAL128_SET_NAN (*dec);
+            return false;
          }
 
          saw_radix = true;
@@ -496,6 +497,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
 
    if (saw_radix && !ndigits_read) {
       BSON_DECIMAL128_SET_NAN (*dec);
+      return false;
    }
 
    /* Read exponent if exists */
