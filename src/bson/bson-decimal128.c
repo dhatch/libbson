@@ -358,6 +358,58 @@ _mul_64x64 (uint64_t              left,    /* IN */
    *product = rt;
 }
 
+/**
+ *------------------------------------------------------------------------------
+ *
+ * _dec128_tolower --
+ *
+ *    This function converts the ASCII character @c to lowercase.  It is locale
+ *    insensitive (unlike the stdlib tolower).
+ *
+ * Returns:
+ *    The lowercased character.
+ */
+char
+_dec128_tolower (char c)
+{
+   if (isupper (c)) {
+      c += 32;
+   }
+
+   return c;
+}
+
+/**
+ *------------------------------------------------------------------------------
+ *
+ * _dec128_istreq --
+ *
+ *    This function compares the null-terminated *ASCII* strings @a and @b
+ *    for case-insensitive equality.
+ *
+ * Returns:
+ *    true if the strings are equal, false otherwise.
+ */
+bool
+_dec128_istreq (const char *a, /* IN */
+                const char *b /* IN */)
+{
+   while (*a != '\0' || *b != '\0') {
+      /* strings are different lengths. */
+      if (*a == '\0' || *b == '\0') {
+         return false;
+      }
+
+      if (_dec128_tolower (*a) != _dec128_tolower (*b)) {
+         return false;
+      }
+
+      a++;
+      b++;
+   }
+
+   return true;
+}
 
 /**
  *------------------------------------------------------------------------------
@@ -394,6 +446,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
    /* Parsing state tracking */
    bool is_negative = false;
    bool saw_radix = false;
+   bool includes_sign = false;  /* True if the input string contains a sign. */
    bool found_nonzero = false;
 
    size_t significant_digits = 0;    /* Total number of significant digits
@@ -419,39 +472,20 @@ bson_decimal128_from_string (const char        *string, /* IN */
    dec->high = 0;
    dec->low = 0;
 
-   /* Strip any leading whitespace */
-   while (isspace (*str_read)) {
-      str_read++;
-   }
-
    if (*str_read == '+' || *str_read == '-') {
       is_negative = *(str_read++) == '-';
+      includes_sign = true;
    }
 
    /* Check for Infinity or NaN */
    if (!isdigit (*str_read) && *str_read != '.') {
-      if (*str_read == 'i' || *str_read == 'I') {
-         str_read++;
-
-         if (*str_read == 'n' || *str_read == 'N') {
-            str_read++;
-
-            if (*str_read == 'f' || *str_read == 'F') {
-               BSON_DECIMAL128_SET_INF (*dec, is_negative);
-               return true;
-            }
-         }
-      } else if (*str_read == 'N') {
-         str_read++;
-
-         if (*str_read == 'a') {
-            str_read++;
-
-            if (*str_read == 'N') {
-               BSON_DECIMAL128_SET_NAN (*dec);
-               return true;
-            }
-         }
+      if (_dec128_istreq (str_read, "inf") ||
+          _dec128_istreq (str_read, "infinity")) {
+         BSON_DECIMAL128_SET_INF (*dec, is_negative);
+         return true;
+      } else if (_dec128_istreq (str_read, "nan")) {
+         BSON_DECIMAL128_SET_NAN (*dec);
+         return true;
       }
 
       BSON_DECIMAL128_SET_NAN (*dec);
@@ -540,7 +574,7 @@ bson_decimal128_from_string (const char        *string, /* IN */
       significant_digits = ndigits;
       // Mark trailing zeros as non-significant
       while (string[first_nonzero + significant_digits - 1 +
-                    saw_radix] == '0') {
+                    includes_sign + saw_radix] == '0') {
          significant_digits--;
       }
    }
@@ -563,15 +597,16 @@ bson_decimal128_from_string (const char        *string, /* IN */
       last_digit++;
 
       if (last_digit - first_digit > BSON_DECIMAL128_MAX_DIGITS) {
-         // The exponent is too great to shift into the significand.
+         /* The exponent is too great to shift into the significand. */
          if (significant_digits == 0) {
-            // Value is zero, we are allowed to clamp the exponent.
+            /* Value is zero, we are allowed to clamp the exponent. */
             exponent = BSON_DECIMAL128_EXPONENT_MAX;
             break;
          }
 
-         BSON_DECIMAL128_SET_INF (*dec, is_negative);
-         return true;
+         /* Overflow is not permitted, error. */
+         BSON_DECIMAL128_SET_NAN (*dec);
+         return false;
       }
 
       exponent--;
@@ -581,79 +616,60 @@ bson_decimal128_from_string (const char        *string, /* IN */
           ndigits_stored < ndigits) {
       /* Shift last digit */
       if (last_digit == 0) {
-         exponent = BSON_DECIMAL128_EXPONENT_MIN;
-         significant_digits = 0; /* signal zero value. */
-         break;
+         /* underflow is not allowed, but zero clamping is */
+         if (significant_digits == 0) {
+            exponent = BSON_DECIMAL128_EXPONENT_MIN;
+            break;
+         }
+
+         BSON_DECIMAL128_SET_NAN (*dec);
+         return false;
       }
 
       if (ndigits_stored < ndigits) {
+         if (string[ndigits - 1 + includes_sign + saw_radix] - '0' != 0 &&
+             significant_digits != 0) {
+            BSON_DECIMAL128_SET_NAN (*dec);
+            return false;
+         }
+
          ndigits--; /* adjust to match digits not stored */
       } else {
+         if (digits[last_digit] != 0) {
+            /* Inexact rounding is not allowed. */
+            BSON_DECIMAL128_SET_NAN (*dec);
+            return false;
+         }
+
+
          last_digit--; /* adjust to round */
       }
 
       if (exponent < BSON_DECIMAL128_EXPONENT_MAX) {
          exponent++;
       } else {
-         BSON_DECIMAL128_SET_INF (*dec, is_negative);
-         return true;
+         BSON_DECIMAL128_SET_NAN (*dec);
+         return false;
       }
    }
 
    /* Round */
    /* We've normalized the exponent, but might still need to round. */
    if (last_digit - first_digit + 1 < significant_digits) {
-      size_t end_of_string = ndigits_read;
+      size_t end_of_string = ndigits_read + includes_sign + saw_radix;
       uint8_t round_digit;
       uint8_t round_bit = 0;
 
-      /* If we have seen a radix point, 'string' is 1 longer than we have
-       * documented with ndigits_read, so inc the position of the first nonzero
-       * digit and the position that digits are read to. */
-      if (saw_radix && exponent == BSON_DECIMAL128_EXPONENT_MIN) {
-         first_nonzero++;
-         end_of_string++;
-      }
-
       /* There are non-zero digits after last_digit that need rounding. */
       /* We round to nearest, ties to even */
-      round_digit = string[first_nonzero + last_digit + 1] - '0';
+      round_digit =
+         string[first_nonzero + last_digit + includes_sign + saw_radix + 1] -
+         '0';
 
-      if (round_digit >= 5) {
-         round_bit = 1;
-
-         if (round_digit == 5) {
-            round_bit = digits[last_digit] % 2 == 1;
-
-            for (i = first_nonzero + last_digit + 2; i < end_of_string; i++) {
-               if (string[i] - '0') {
-                  round_bit = 1;
-                  break;
-               }
-            }
-         }
-      }
-
-      if (round_bit) {
-         int d_idx = last_digit;
-
-         for (; d_idx >= 0; d_idx--) {
-            if (++digits[d_idx] > 9) {
-               digits[d_idx] = 0;
-
-               if (d_idx == 0) { /* overflowed most significant digit */
-                  if (exponent < BSON_DECIMAL128_EXPONENT_MAX) {
-                     exponent++;
-                     digits[d_idx] = 1;
-                  } else {
-                     BSON_DECIMAL128_SET_INF (*dec, is_negative);
-                     return true;
-                  }
-               }
-            } else {
-               break;
-            }
-         }
+      if (round_digit != 0) {
+         // Inexact (non-zero) rounding is not allowed
+         BSON_DECIMAL128_SET_NAN (*dec);
+         return false;
       }
    }
 
